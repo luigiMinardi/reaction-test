@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"syscall"
 	"unsafe"
 
@@ -107,23 +108,60 @@ func drawBorders(winsize unix.Winsize) (buf []byte) {
 func main() {
 	var previousFrameSize unix.Winsize
 
-	for {
-		winsize, err := GetWinsize()
-		if err != nil {
-			fmt.Println(err)
-			panic("failed to get winsize")
-		}
-		if previousFrameSize.Col != winsize.Col ||
-			previousFrameSize.Row != winsize.Row {
-			fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
-			buf := drawBorders(*winsize)
-			write(int(os.Stdout.Fd()), buf)
-		}
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGWINCH)
+	/*
+		write(int(os.Stdout.Fd()), []byte("\033[?1049h"))
+		write(int(os.Stdout.Fd()), []byte("\033[?1006h"))
+		write(int(os.Stdout.Fd()), []byte("\033[?1000h"))
+	*/
 
-		previousFrameSize.Col = winsize.Col
-		previousFrameSize.Row = winsize.Row
-		previousFrameSize.Xpixel = winsize.Xpixel
-		previousFrameSize.Ypixel = winsize.Ypixel
-		//for {
+	winsize, err := GetWinsize()
+	if err != nil {
+		fmt.Println(err)
+		panic("failed to get winsize")
+	}
+	if previousFrameSize.Col != winsize.Col ||
+		previousFrameSize.Row != winsize.Row {
+		write(int(os.Stdout.Fd()), []byte("\033[3J\033[H"))
+		fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
+		buf := drawBorders(*winsize)
+		write(int(os.Stdout.Fd()), buf)
+	}
+
+	previousFrameSize.Col = winsize.Col
+	previousFrameSize.Row = winsize.Row
+	previousFrameSize.Xpixel = winsize.Xpixel
+	previousFrameSize.Ypixel = winsize.Ypixel
+	for {
+		// read from channel
+		sig := <-sigChan
+		switch sig {
+		case os.Interrupt:
+			/*
+				write(int(os.Stdout.Fd()), []byte("\033[?1049l"))
+				write(int(os.Stdout.Fd()), []byte("\033[?1006l"))
+				write(int(os.Stdout.Fd()), []byte("\033[?1000l"))
+			*/
+			return
+		case syscall.SIGWINCH:
+			winsize, err := GetWinsize()
+			if err != nil {
+				fmt.Println(err)
+				panic("failed to get winsize")
+			}
+			if previousFrameSize.Col != winsize.Col ||
+				previousFrameSize.Row != winsize.Row {
+				write(int(os.Stdout.Fd()), []byte("\033[3J\033[H"))
+				fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
+				buf := drawBorders(*winsize)
+				write(int(os.Stdout.Fd()), buf)
+			}
+
+			previousFrameSize.Col = winsize.Col
+			previousFrameSize.Row = winsize.Row
+			previousFrameSize.Xpixel = winsize.Xpixel
+			previousFrameSize.Ypixel = winsize.Ypixel
+		}
 	}
 }
