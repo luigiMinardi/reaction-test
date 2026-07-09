@@ -66,11 +66,64 @@ func GetWinsize() (*unix.Winsize, error) {
 	return &winsize, err
 }
 
-func main() {
-	winsize, err := GetWinsize()
-	if err != nil {
-		fmt.Println(err)
-		panic("failed to get winsize")
+// fd = File Descriptor, for unix it will be os.Stdout.Fd() for example
+// b is the byte slice to be written
+// nb is the number of bytes that were written
+func write(fd int, b []byte) (nb int, err error) {
+
+	n, _, errno := unix.Syscall(
+		unix.SYS_WRITE,
+		uintptr(fd),
+		uintptr(unsafe.Pointer(&b[0])),
+		uintptr(len(b)),
+	)
+	if errno != 0 {
+		return int(n), errnoErr(errno)
 	}
-	fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
+	return int(n), nil
+}
+
+func drawBorders(winsize unix.Winsize) (buf []byte) {
+	for i := range winsize.Row {
+		for j := range winsize.Col {
+			if i == 0 || i == winsize.Row-1 {
+				buf = append(buf, '=')
+			}
+			if i != winsize.Row-1 && i != 0 {
+				if j == 0 || j == winsize.Col-1 {
+					buf = append(buf, '|')
+				} else {
+					buf = append(buf, ' ')
+				}
+			}
+			if j == winsize.Col-1 && i != winsize.Row-1 {
+				buf = append(buf, '\n')
+			}
+		}
+	}
+	return buf
+}
+
+func main() {
+	var previousFrameSize unix.Winsize
+
+	for {
+		winsize, err := GetWinsize()
+		if err != nil {
+			fmt.Println(err)
+			panic("failed to get winsize")
+		}
+		if previousFrameSize.Col != winsize.Col ||
+			previousFrameSize.Row != winsize.Row {
+			fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
+			buf := drawBorders(*winsize)
+			write(int(os.Stdout.Fd()), buf)
+		}
+
+		previousFrameSize.Col = winsize.Col
+		previousFrameSize.Row = winsize.Row
+		previousFrameSize.Xpixel = winsize.Xpixel
+		previousFrameSize.Ypixel = winsize.Ypixel
+		//for {
+	}
 }
