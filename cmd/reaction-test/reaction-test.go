@@ -84,25 +84,50 @@ func write(fd int, b []byte) (nb int, err error) {
 	return int(n), nil
 }
 
-func drawBorders(winsize unix.Winsize) (buf []byte) {
-	for i := range winsize.Row {
-		for j := range winsize.Col {
-			if i == 0 || i == winsize.Row-1 {
-				buf = append(buf, '=')
-			}
-			if i != winsize.Row-1 && i != 0 {
-				if j == 0 || j == winsize.Col-1 {
-					buf = append(buf, '|')
-				} else {
-					buf = append(buf, ' ')
-				}
-			}
-			if j == winsize.Col-1 && i != winsize.Row-1 {
-				buf = append(buf, '\n')
-			}
-		}
+// Mutates the byteArray inserting the character char
+func fill(bArr []byte, char byte) {
+	for i := range bArr {
+		bArr[i] = char
 	}
-	return buf
+}
+
+// return the index of an element in a 2d grid represented in a slice
+func index(row, col, rows, cols int) int {
+	if row >= 0 && row < rows && col >= 0 && col < cols {
+		return row*cols + col
+	}
+	panic(
+		fmt.Sprintf(
+			"grid index out of bounds: row=%d col=%d index=%d size=(%dx%d) length=%d\n%s",
+			row, col, row*cols+col, rows, cols, rows*cols,
+			"remember that index start's at 0, if index==length you're actually at length +1",
+		),
+	)
+}
+
+// return the index of an element in a unix winsize represented in a slice
+func windex(winsize unix.Winsize, row, col int) int {
+	return index(row, col, int(winsize.Row), int(winsize.Col))
+}
+
+// Mutates a byte array drawing borders in it
+func drawBorders(buf []byte, winsize unix.Winsize) {
+	i := windex(winsize, 0, int(winsize.Col)-1)
+	fill(buf[0:i+1], '=')
+	buf[winsize.Col] = '\n'
+
+	for row := 1; row < int(winsize.Row)-1; row++ {
+		i = windex(winsize, int(row), int(winsize.Col)-1)
+		j := windex(winsize, int(row), 1)
+		fill(buf[j:i], ' ')
+		buf[j-1] = '|'
+		buf[i] = '|'
+		buf[i+1] = '\n'
+	}
+
+	i = windex(winsize, int(winsize.Row)-1, int(winsize.Col)-1)
+	j := windex(winsize, int(winsize.Row)-1, 0)
+	fill(buf[j:i+1], '=')
 }
 
 func main() {
@@ -125,7 +150,8 @@ func main() {
 		previousFrameSize.Row != winsize.Row {
 		write(int(os.Stdout.Fd()), []byte("\033[3J\033[H"))
 		fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
-		buf := drawBorders(*winsize)
+		buf := make([]byte, winsize.Row*winsize.Col)
+		drawBorders(buf, *winsize)
 		write(int(os.Stdout.Fd()), buf)
 	}
 
@@ -154,7 +180,8 @@ func main() {
 				previousFrameSize.Row != winsize.Row {
 				write(int(os.Stdout.Fd()), []byte("\033[3J\033[H"))
 				fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
-				buf := drawBorders(*winsize)
+				buf := make([]byte, winsize.Row*winsize.Col)
+				drawBorders(buf, *winsize)
 				write(int(os.Stdout.Fd()), buf)
 			}
 
