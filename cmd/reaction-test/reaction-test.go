@@ -119,7 +119,6 @@ func drawBorders(buf []byte, winsize unix.Winsize) {
 	for row := 1; row < int(winsize.Row)-1; row++ {
 		i = windex(winsize, int(row), int(winsize.Col)-1)
 		j := windex(winsize, int(row), 1)
-		fill(buf[j:i], ' ')
 		buf[j-1] = '|'
 		buf[i] = '|'
 		buf[i+1] = '\n'
@@ -128,6 +127,15 @@ func drawBorders(buf []byte, winsize unix.Winsize) {
 	i = windex(winsize, int(winsize.Row)-1, int(winsize.Col)-1)
 	j := windex(winsize, int(winsize.Row)-1, 0)
 	fill(buf[j:i+1], '=')
+}
+
+// make the inner side of the buffer filled with spaces
+func clearBoard(buf []byte, winsize unix.Winsize) {
+	for row := 1; row < int(winsize.Row)-1; row++ {
+		i := windex(winsize, int(row), int(winsize.Col)-1)
+		j := windex(winsize, int(row), 1)
+		fill(buf[j:i], ' ')
+	}
 }
 
 func main() {
@@ -152,6 +160,7 @@ func main() {
 		fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
 		buf := make([]byte, winsize.Row*winsize.Col)
 		drawBorders(buf, *winsize)
+		clearBoard(buf, *winsize)
 		write(int(os.Stdout.Fd()), buf)
 	}
 
@@ -182,6 +191,7 @@ func main() {
 				fmt.Println(winsize.Col, winsize.Row, winsize.Xpixel, winsize.Ypixel, winsize)
 				buf := make([]byte, winsize.Row*winsize.Col)
 				drawBorders(buf, *winsize)
+				clearBoard(buf, *winsize)
 				write(int(os.Stdout.Fd()), buf)
 			}
 
