@@ -138,6 +138,19 @@ func clearBoard(buf []byte, winsize unix.Winsize) {
 	}
 }
 
+type Coords struct {
+	Row int
+	Col int
+}
+
+func drawBox(buf []byte, winsize unix.Winsize, start, end Coords) {
+	for row := start.Row; row < end.Row; row++ {
+		i := windex(winsize, int(row), start.Col)
+		j := windex(winsize, int(row), end.Col)
+		fill(buf[i:j], 'o')
+	}
+}
+
 func main() {
 	var previousFrameSize unix.Winsize
 
@@ -161,6 +174,7 @@ func main() {
 		buf := make([]byte, winsize.Row*winsize.Col)
 		drawBorders(buf, *winsize)
 		clearBoard(buf, *winsize)
+		drawBox(buf, *winsize, Coords{Row: 10, Col: 10}, Coords{Row: 15, Col: 20})
 		write(int(os.Stdout.Fd()), buf)
 	}
 
@@ -192,6 +206,7 @@ func main() {
 				buf := make([]byte, winsize.Row*winsize.Col)
 				drawBorders(buf, *winsize)
 				clearBoard(buf, *winsize)
+				drawBox(buf, *winsize, Coords{Row: 10, Col: 10}, Coords{Row: 15, Col: 20})
 				write(int(os.Stdout.Fd()), buf)
 			}
 
