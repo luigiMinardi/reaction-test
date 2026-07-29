@@ -151,13 +151,25 @@ func drawBox(buf []byte, winsize unix.Winsize, start, end Coords) {
 	}
 }
 
+func writeStrBuf(buf []byte, winsize unix.Winsize, start Coords, s string) {
+	i := windex(winsize, int(start.Row), int(start.Col))
+	buf[i] = byte(s[0])
+	buf[i+1] = byte(s[1])
+	for j := range len(s) {
+		// TODO: need to validate if i dont pass max winsize or max Col
+		buf[i] = byte(s[j])
+		i++
+	}
+}
+
 func main() {
 	var previousFrameSize unix.Winsize
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGWINCH)
+	// enables the alternative buffer
+	write(int(os.Stdout.Fd()), []byte("\033[?1049h"))
 	/*
-		write(int(os.Stdout.Fd()), []byte("\033[?1049h"))
 		write(int(os.Stdout.Fd()), []byte("\033[?1006h"))
 		write(int(os.Stdout.Fd()), []byte("\033[?1000h"))
 	*/
@@ -175,6 +187,7 @@ func main() {
 		drawBorders(buf, *winsize)
 		clearBoard(buf, *winsize)
 		drawBox(buf, *winsize, Coords{Row: 10, Col: 10}, Coords{Row: 15, Col: 20})
+		writeStrBuf(buf, *winsize, Coords{Row: 5, Col: 5}, "Hello World!")
 		write(int(os.Stdout.Fd()), buf)
 	}
 
@@ -187,12 +200,14 @@ func main() {
 		sig := <-sigChan
 		switch sig {
 		case os.Interrupt:
+			// disables the alternative buffer
+			write(int(os.Stdout.Fd()), []byte("\033[?1049l"))
 			/*
-				write(int(os.Stdout.Fd()), []byte("\033[?1049l"))
 				write(int(os.Stdout.Fd()), []byte("\033[?1006l"))
 				write(int(os.Stdout.Fd()), []byte("\033[?1000l"))
 			*/
-			return
+			fmt.Println("Finished")
+			os.Exit(0)
 		case syscall.SIGWINCH:
 			winsize, err := GetWinsize()
 			if err != nil {
