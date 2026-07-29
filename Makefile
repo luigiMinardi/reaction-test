@@ -1,3 +1,4 @@
 run:
-	echo "Running..."
-	@go run ./cmd/reaction-test/reaction-test.go
+	@echo "Running..."
+	@go build -o ./bin/rt ./cmd/reaction-test/reaction-test.go
+	@./bin/rt
